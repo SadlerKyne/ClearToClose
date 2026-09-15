@@ -4,7 +4,7 @@ A .NET Blazor personal finance web application that helps users track and improv
 
 ## Team
 
-- Sadler Kyne (team of one)
+- Shawn Kyne (team of one)
 
 ## Project Overview
 
@@ -18,8 +18,6 @@ Buyers working toward mortgage qualification need to know their DTI, stay curren
 3. **Spending Tracker** — User logs purchases with a category (groceries, dining, entertainment, etc.) and views spending totals by category.
 
 Supporting requirements: user authentication (each user's financial data is private to them), CRUD across bills/paychecks/purchases/goals, and deployment to a cloud host.
-
-This is a scoped-down, from-scratch .NET Blazor rebuild of a concept originally prototyped in JavaScript/Node as a personal project with my wife ([Mortgage_DTI](https://github.com/Aracelikyne/Mortgage_DTI)); this repository is new, independent code written for this course.
 
 ## Project Ideas Considered
 
