@@ -1,6 +1,6 @@
 # Clear to Close
 
-A .NET Blazor web application for tracking mortgage loan files through the closing process — from application to "clear to close." Built for CSE 325's semester-long group project.
+A .NET Blazor personal finance web application that helps users track and improve their debt-to-income (DTI) ratio on the way to being "clear to close" on a mortgage. Built for CSE 325's semester-long group project.
 
 ## Team
 
@@ -8,24 +8,24 @@ A .NET Blazor web application for tracking mortgage loan files through the closi
 
 ## Project Overview
 
-Loan officers and processors juggle a checklist of outstanding conditions (income verification, appraisal, title work, insurance, etc.) for every loan file before it can close. This app gives a processor a simple dashboard to create loan files, attach the conditions required to close each one, track their status, and see at a glance which files are "clear to close" versus still pending.
+Buyers working toward mortgage qualification need to know their DTI, stay current on bills, and control discretionary spending — all in one place. This app gives an individual user a simple dashboard to see their current DTI against a goal DTI, track their bills against their paycheck, and log purchases by category to understand where their money is going.
 
-**Target audience:** Mortgage loan processors and loan officers at a small lending office who need a lightweight way to track closing conditions without a full enterprise loan-origination system.
+**Target audience:** Individuals actively working to qualify for or close on a mortgage who want a single, simple tool to track their income, bills, and spending against a DTI goal.
 
 **Core features (MVP scope for this course):**
-- User authentication (loan processor accounts)
-- CRUD for loan files (borrower name, loan amount, target closing date)
-- CRUD for closing conditions attached to each loan file (description, status: pending/received/waived)
-- Dashboard view showing each loan file's overall clear-to-close status
-- Deployed to a cloud host
+1. **DTI Dashboard** — User enters income and debts; the app calculates current DTI and shows progress toward a user-set goal DTI.
+2. **Bill Tracker** — User inputs recurring bills and paycheck(s), and marks bills paid/unpaid to confirm everything is covered each pay period.
+3. **Spending Tracker** — User logs purchases with a category (groceries, dining, entertainment, etc.) and views spending totals by category.
+
+Supporting requirements: user authentication (each user's financial data is private to them), CRUD across bills/paychecks/purchases/goals, and deployment to a cloud host.
 
 This is a scoped-down, from-scratch .NET Blazor rebuild of a concept originally prototyped in JavaScript/Node as a personal project with my wife ([Mortgage_DTI](https://github.com/Aracelikyne/Mortgage_DTI)); this repository is new, independent code written for this course.
 
 ## Project Ideas Considered
 
-1. **Clear to Close (selected)** — Mortgage closing-condition tracker described above. Features: loan file CRUD, condition checklist CRUD, auth, status dashboard. Audience: mortgage loan processors/officers.
-2. **Household Chore Tracker** — A Blazor app for assigning and tracking recurring household chores/tasks among family members, with completion history. Features: task CRUD, user auth per household member, completion logging, simple points/streak tracking. Audience: families/roommates.
-3. **Simple Study Deck App** — A flashcard study tool where users create decks and cards and track review progress. Features: deck/card CRUD, user auth, basic spaced-repetition-style status per card. Audience: students studying for exams.
+1. **Clear to Close (selected)** — Personal DTI/finance tracker described above. Features: DTI dashboard with goal tracking, bill/paycheck tracker, categorized spending tracker, user auth. Audience: individuals working toward mortgage qualification.
+2. **Savings Goal Tracker** — Users create savings goals (e.g. "Emergency Fund – $5,000") and log contributions toward each one. Features: goal CRUD, contribution CRUD, progress visualization, user auth. Audience: individuals building savings habits.
+3. **Debt Payoff Planner** — Users list their debts (balance, interest rate, minimum payment) and log payments against them, with the app suggesting a snowball or avalanche payoff order. Features: debt CRUD, payment-log CRUD, payoff-order calculation, user auth. Audience: individuals paying down multiple debts.
 
 ## Status
 
