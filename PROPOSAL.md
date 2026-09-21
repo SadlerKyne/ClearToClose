@@ -55,4 +55,4 @@ Each of these features is tracked as a card on the project's Trello board (linke
 ## Project Links
 
 - **GitHub Repository:** https://github.com/SadlerKyne/ClearToClose (public)
-- **Trello Board:** _pending — link to be added once created_
+- **Trello Board:** https://trello.com/b/5CWMX3Sq/my-trello-board
