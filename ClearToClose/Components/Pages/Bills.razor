@@ -1,0 +1,111 @@
+@page "/bills"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using ClearToClose.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Bills</PageTitle>
+
+<h1>Bills</h1>
+
+<EditForm Model="newBill" OnValidSubmit="AddBill">
+    <DataAnnotationsValidator />
+    <div class="row g-2 align-items-end mb-3">
+        <div class="col-auto">
+            <label class="form-label">Name</label>
+            <InputText class="form-control" @bind-Value="newBill.Name" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">Amount</label>
+            <InputNumber class="form-control" @bind-Value="newBill.Amount" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">Due Date</label>
+            <InputDate class="form-control" @bind-Value="newBillDueDate" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Add Bill</button>
+        </div>
+    </div>
+    <ValidationSummary />
+</EditForm>
+
+@if (bills is null)
+{
+    <p>Loading...</p>
+}
+else if (bills.Count == 0)
+{
+    <p>No bills added yet.</p>
+}
+else
+{
+    <table class="table">
+        <thead><tr><th>Name</th><th>Amount</th><th>Due Date</th><th>Paid?</th><th></th></tr></thead>
+        <tbody>
+        @foreach (var bill in bills)
+        {
+            <tr class="@(bill.IsPaid ? "table-success" : "")">
+                <td>@bill.Name</td>
+                <td>@bill.Amount.ToString("C")</td>
+                <td>@bill.DueDate.ToShortDateString()</td>
+                <td>
+                    <input type="checkbox" checked="@bill.IsPaid" @onchange="(e) => TogglePaid(bill, e)" />
+                </td>
+                <td><button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteBill(bill.Id)">Delete</button></td>
+            </tr>
+        }
+        </tbody>
+    </table>
+    <p>Unpaid bills remaining: <strong>@bills.Count(b => !b.IsPaid)</strong></p>
+}
+
+@code {
+    private List<Bill>? bills;
+    private Bill newBill = new();
+    private DateTime newBillDueDate = DateTime.Today;
+    private string userId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        await LoadBills();
+    }
+
+    private async Task LoadBills()
+    {
+        bills = await Db.Bills.Where(b => b.UserId == userId).OrderBy(b => b.DueDate).ToListAsync();
+    }
+
+    private async Task AddBill()
+    {
+        newBill.UserId = userId;
+        newBill.DueDate = DateOnly.FromDateTime(newBillDueDate);
+        Db.Bills.Add(newBill);
+        await Db.SaveChangesAsync();
+        newBill = new Bill();
+        newBillDueDate = DateTime.Today;
+        await LoadBills();
+    }
+
+    private async Task TogglePaid(Bill bill, ChangeEventArgs e)
+    {
+        bill.IsPaid = (bool)(e.Value ?? false);
+        await Db.SaveChangesAsync();
+    }
+
+    private async Task DeleteBill(int id)
+    {
+        var bill = await Db.Bills.FindAsync(id);
+        if (bill is not null)
+        {
+            Db.Bills.Remove(bill);
+            await Db.SaveChangesAsync();
+        }
+        await LoadBills();
+    }
+}

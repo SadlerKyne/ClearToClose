@@ -1,0 +1,96 @@
+@page "/paychecks"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using ClearToClose.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Paychecks</PageTitle>
+
+<h1>Paychecks</h1>
+
+<EditForm Model="newPaycheck" OnValidSubmit="AddPaycheck">
+    <DataAnnotationsValidator />
+    <div class="row g-2 align-items-end mb-3">
+        <div class="col-auto">
+            <label class="form-label">Amount</label>
+            <InputNumber class="form-control" @bind-Value="newPaycheck.Amount" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">Date Received</label>
+            <InputDate class="form-control" @bind-Value="newPaycheckDate" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Add Paycheck</button>
+        </div>
+    </div>
+    <ValidationSummary />
+</EditForm>
+
+@if (paychecks is null)
+{
+    <p>Loading...</p>
+}
+else if (paychecks.Count == 0)
+{
+    <p>No paychecks logged yet.</p>
+}
+else
+{
+    <table class="table">
+        <thead><tr><th>Date</th><th>Amount</th><th></th></tr></thead>
+        <tbody>
+        @foreach (var paycheck in paychecks)
+        {
+            <tr>
+                <td>@paycheck.DateReceived.ToShortDateString()</td>
+                <td>@paycheck.Amount.ToString("C")</td>
+                <td><button class="btn btn-sm btn-outline-danger" @onclick="() => DeletePaycheck(paycheck.Id)">Delete</button></td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Paycheck>? paychecks;
+    private Paycheck newPaycheck = new();
+    private DateTime newPaycheckDate = DateTime.Today;
+    private string userId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        await LoadPaychecks();
+    }
+
+    private async Task LoadPaychecks()
+    {
+        paychecks = await Db.Paychecks.Where(p => p.UserId == userId).OrderByDescending(p => p.DateReceived).ToListAsync();
+    }
+
+    private async Task AddPaycheck()
+    {
+        newPaycheck.UserId = userId;
+        newPaycheck.DateReceived = DateOnly.FromDateTime(newPaycheckDate);
+        Db.Paychecks.Add(newPaycheck);
+        await Db.SaveChangesAsync();
+        newPaycheck = new Paycheck();
+        newPaycheckDate = DateTime.Today;
+        await LoadPaychecks();
+    }
+
+    private async Task DeletePaycheck(int id)
+    {
+        var paycheck = await Db.Paychecks.FindAsync(id);
+        if (paycheck is not null)
+        {
+            Db.Paychecks.Remove(paycheck);
+            await Db.SaveChangesAsync();
+        }
+        await LoadPaychecks();
+    }
+}

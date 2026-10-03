@@ -1,0 +1,62 @@
+@page "/profile"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using ClearToClose.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Profile</PageTitle>
+
+<h1>Income &amp; DTI Goal</h1>
+<p>Your monthly income and goal DTI are used to calculate your DTI dashboard.</p>
+
+@if (profile is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <EditForm Model="profile" OnValidSubmit="Save">
+        <DataAnnotationsValidator />
+        <div class="mb-3">
+            <label class="form-label">Monthly Income</label>
+            <InputNumber class="form-control" @bind-Value="profile.MonthlyIncome" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Goal DTI (as a decimal, e.g. 0.36 for 36%)</label>
+            <InputNumber class="form-control" @bind-Value="profile.GoalDti" />
+        </div>
+        <button type="submit" class="btn btn-primary">Save</button>
+        @if (saved)
+        {
+            <span class="text-success ms-2">Saved!</span>
+        }
+        <ValidationSummary />
+    </EditForm>
+}
+
+@code {
+    private FinancialProfile? profile;
+    private string userId = string.Empty;
+    private bool saved;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        profile = await Db.FinancialProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
+        profile ??= new FinancialProfile { UserId = userId };
+    }
+
+    private async Task Save()
+    {
+        if (profile!.Id == 0)
+        {
+            Db.FinancialProfiles.Add(profile);
+        }
+        await Db.SaveChangesAsync();
+        saved = true;
+    }
+}

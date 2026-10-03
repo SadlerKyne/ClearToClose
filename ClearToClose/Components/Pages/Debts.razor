@@ -1,0 +1,95 @@
+@page "/debts"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using ClearToClose.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Debts</PageTitle>
+
+<h1>Debts</h1>
+<p>List the debts that count toward your debt-to-income ratio (loans, credit cards, car payments, etc.).</p>
+
+<EditForm Model="newDebt" OnValidSubmit="AddDebt">
+    <DataAnnotationsValidator />
+    <div class="row g-2 align-items-end mb-3">
+        <div class="col-auto">
+            <label class="form-label">Name</label>
+            <InputText class="form-control" @bind-Value="newDebt.Name" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">Monthly Payment</label>
+            <InputNumber class="form-control" @bind-Value="newDebt.MonthlyPayment" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Add Debt</button>
+        </div>
+    </div>
+    <ValidationSummary />
+</EditForm>
+
+@if (debts is null)
+{
+    <p>Loading...</p>
+}
+else if (debts.Count == 0)
+{
+    <p>No debts added yet.</p>
+}
+else
+{
+    <table class="table">
+        <thead><tr><th>Name</th><th>Monthly Payment</th><th></th></tr></thead>
+        <tbody>
+        @foreach (var debt in debts)
+        {
+            <tr>
+                <td>@debt.Name</td>
+                <td>@debt.MonthlyPayment.ToString("C")</td>
+                <td><button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteDebt(debt.Id)">Delete</button></td>
+            </tr>
+        }
+        </tbody>
+    </table>
+    <p><strong>Total monthly debt payments: @debts.Sum(d => d.MonthlyPayment).ToString("C")</strong></p>
+}
+
+@code {
+    private List<Debt>? debts;
+    private Debt newDebt = new();
+    private string userId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        await LoadDebts();
+    }
+
+    private async Task LoadDebts()
+    {
+        debts = await Db.Debts.Where(d => d.UserId == userId).OrderBy(d => d.Name).ToListAsync();
+    }
+
+    private async Task AddDebt()
+    {
+        newDebt.UserId = userId;
+        Db.Debts.Add(newDebt);
+        await Db.SaveChangesAsync();
+        newDebt = new Debt();
+        await LoadDebts();
+    }
+
+    private async Task DeleteDebt(int id)
+    {
+        var debt = await Db.Debts.FindAsync(id);
+        if (debt is not null)
+        {
+            Db.Debts.Remove(debt);
+            await Db.SaveChangesAsync();
+        }
+        await LoadDebts();
+    }
+}

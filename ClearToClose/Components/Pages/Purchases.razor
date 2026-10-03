@@ -1,0 +1,120 @@
+@page "/purchases"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using ClearToClose.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Purchases</PageTitle>
+
+<h1>Purchases</h1>
+
+<EditForm Model="newPurchase" OnValidSubmit="AddPurchase">
+    <DataAnnotationsValidator />
+    <div class="row g-2 align-items-end mb-3">
+        <div class="col-auto">
+            <label class="form-label">Description</label>
+            <InputText class="form-control" @bind-Value="newPurchase.Description" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">Amount</label>
+            <InputNumber class="form-control" @bind-Value="newPurchase.Amount" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">Category</label>
+            <InputText class="form-control" @bind-Value="newPurchase.Category" placeholder="Groceries, Dining, etc." />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">Date</label>
+            <InputDate class="form-control" @bind-Value="newPurchaseDate" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Add Purchase</button>
+        </div>
+    </div>
+    <ValidationSummary />
+</EditForm>
+
+@if (purchases is null)
+{
+    <p>Loading...</p>
+}
+else if (purchases.Count == 0)
+{
+    <p>No purchases logged yet.</p>
+}
+else
+{
+    <table class="table">
+        <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th></th></tr></thead>
+        <tbody>
+        @foreach (var purchase in purchases)
+        {
+            <tr>
+                <td>@purchase.Date.ToShortDateString()</td>
+                <td>@purchase.Description</td>
+                <td>@purchase.Category</td>
+                <td>@purchase.Amount.ToString("C")</td>
+                <td><button class="btn btn-sm btn-outline-danger" @onclick="() => DeletePurchase(purchase.Id)">Delete</button></td>
+            </tr>
+        }
+        </tbody>
+    </table>
+
+    <h3 class="mt-4">Spending by Category</h3>
+    <table class="table">
+        <thead><tr><th>Category</th><th>Total</th></tr></thead>
+        <tbody>
+        @foreach (var group in purchases.GroupBy(p => p.Category).OrderByDescending(g => g.Sum(p => p.Amount)))
+        {
+            <tr>
+                <td>@group.Key</td>
+                <td>@group.Sum(p => p.Amount).ToString("C")</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Purchase>? purchases;
+    private Purchase newPurchase = new();
+    private DateTime newPurchaseDate = DateTime.Today;
+    private string userId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        await LoadPurchases();
+    }
+
+    private async Task LoadPurchases()
+    {
+        purchases = await Db.Purchases.Where(p => p.UserId == userId).OrderByDescending(p => p.Date).ToListAsync();
+    }
+
+    private async Task AddPurchase()
+    {
+        newPurchase.UserId = userId;
+        newPurchase.Date = DateOnly.FromDateTime(newPurchaseDate);
+        Db.Purchases.Add(newPurchase);
+        await Db.SaveChangesAsync();
+        newPurchase = new Purchase();
+        newPurchaseDate = DateTime.Today;
+        await LoadPurchases();
+    }
+
+    private async Task DeletePurchase(int id)
+    {
+        var purchase = await Db.Purchases.FindAsync(id);
+        if (purchase is not null)
+        {
+            Db.Purchases.Remove(purchase);
+            await Db.SaveChangesAsync();
+        }
+        await LoadPurchases();
+    }
+}

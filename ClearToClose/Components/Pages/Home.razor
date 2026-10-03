@@ -1,0 +1,101 @@
+@page "/"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using ClearToClose.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext Db
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>Dashboard</PageTitle>
+
+<h1>Dashboard</h1>
+
+@if (loading)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Debt-to-Income Ratio</h5>
+                    @if (monthlyIncome <= 0)
+                    {
+                        <p>Set your monthly income on the <a href="/profile">Profile</a> page to calculate your DTI.</p>
+                    }
+                    else
+                    {
+                        <p class="display-6">@currentDti.ToString("P1")</p>
+                        <p>Goal: @goalDti.ToString("P1")</p>
+                        @if (currentDti <= goalDti)
+                        {
+                            <p class="text-success">You're at or below your goal DTI!</p>
+                        }
+                        else
+                        {
+                            <p class="text-warning">@((currentDti - goalDti).ToString("P1")) above your goal.</p>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Bills</h5>
+                    <p class="display-6">@unpaidBillCount</p>
+                    <p>unpaid bill(s) of @totalBillCount total</p>
+                    <a href="/bills">Manage bills</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Spending (last 30 days)</h5>
+                    <p class="display-6">@recentSpending.ToString("C")</p>
+                    <a href="/purchases">View purchases</a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool loading = true;
+    private decimal monthlyIncome;
+    private decimal goalDti;
+    private decimal currentDti;
+    private int unpaidBillCount;
+    private int totalBillCount;
+    private decimal recentSpending;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+
+        var profile = await Db.FinancialProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
+        monthlyIncome = profile?.MonthlyIncome ?? 0;
+        goalDti = profile?.GoalDti ?? 0.36m;
+
+        var debts = await Db.Debts.Where(d => d.UserId == userId).ToListAsync();
+        var totalDebtPayments = debts.Sum(d => d.MonthlyPayment);
+        currentDti = monthlyIncome > 0 ? totalDebtPayments / monthlyIncome : 0;
+
+        var bills = await Db.Bills.Where(b => b.UserId == userId).ToListAsync();
+        totalBillCount = bills.Count;
+        unpaidBillCount = bills.Count(b => !b.IsPaid);
+
+        var cutoff = DateOnly.FromDateTime(DateTime.Today.AddDays(-30));
+        var recentPurchases = await Db.Purchases
+            .Where(p => p.UserId == userId && p.Date >= cutoff)
+            .ToListAsync();
+        recentSpending = recentPurchases.Sum(p => p.Amount);
+
+        loading = false;
+    }
+}
