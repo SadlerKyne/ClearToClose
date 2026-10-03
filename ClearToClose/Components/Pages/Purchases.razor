@@ -18,7 +18,7 @@
 
 <div class="card mb-3">
     <div class="card-body">
-        <h5 class="card-title">@(editingId is null ? "Add a Purchase" : "Edit Purchase")</h5>
+        <h2 class="card-title h5">@(editingId is null ? "Add a Purchase" : "Edit Purchase")</h2>
         <EditForm Model="formPurchase" OnValidSubmit="SavePurchase">
             <DataAnnotationsValidator />
             <div class="row g-2 align-items-end">
@@ -53,7 +53,7 @@
 
 <div class="card mb-3">
     <div class="card-body">
-        <h5 class="card-title">Your Purchases</h5>
+        <h2 class="card-title h5">Your Purchases</h2>
         @if (purchases is null)
         {
             <p>Loading...</p>
@@ -90,7 +90,7 @@
 {
     <div class="card">
         <div class="card-body">
-            <h5 class="card-title">Spending by Category</h5>
+            <h2 class="card-title h5">Spending by Category</h2>
             <table class="table">
                 <thead><tr><th scope="col">Category</th><th scope="col">Total</th></tr></thead>
                 <tbody>

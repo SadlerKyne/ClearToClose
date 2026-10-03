@@ -25,7 +25,7 @@ else
         <div class="col-md-4">
             <div class="card mb-3">
                 <div class="card-body">
-                    <h5 class="card-title">Debt-to-Income Ratio</h5>
+                    <h2 class="card-title h5">Debt-to-Income Ratio</h2>
                     @if (monthlyIncome <= 0)
                     {
                         <p>Set your monthly income on the <a href="/profile">Profile</a> page to calculate your DTI.</p>
@@ -49,7 +49,7 @@ else
         <div class="col-md-4">
             <div class="card mb-3">
                 <div class="card-body">
-                    <h5 class="card-title">Bills</h5>
+                    <h2 class="card-title h5">Bills</h2>
                     <p class="display-6">@unpaidBillCount</p>
                     <p>unpaid bill(s) of @totalBillCount total</p>
                     <a href="/bills">Manage bills</a>
@@ -59,7 +59,7 @@ else
         <div class="col-md-4">
             <div class="card mb-3">
                 <div class="card-body">
-                    <h5 class="card-title">Spending (last 30 days)</h5>
+                    <h2 class="card-title h5">Spending (last 30 days)</h2>
                     <p class="display-6">@recentSpending.ToString("C")</p>
                     <a href="/purchases">View purchases</a>
                 </div>

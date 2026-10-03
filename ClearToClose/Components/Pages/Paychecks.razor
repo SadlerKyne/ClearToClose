@@ -18,7 +18,7 @@
 
 <div class="card mb-3">
     <div class="card-body">
-        <h5 class="card-title">@(editingId is null ? "Add a Paycheck" : "Edit Paycheck")</h5>
+        <h2 class="card-title h5">@(editingId is null ? "Add a Paycheck" : "Edit Paycheck")</h2>
         <EditForm Model="formPaycheck" OnValidSubmit="SavePaycheck">
             <DataAnnotationsValidator />
             <div class="row g-2 align-items-end">
@@ -45,7 +45,7 @@
 
 <div class="card">
     <div class="card-body">
-        <h5 class="card-title">Your Paychecks</h5>
+        <h2 class="card-title h5">Your Paychecks</h2>
         @if (paychecks is null)
         {
             <p>Loading...</p>
