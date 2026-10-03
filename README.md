@@ -25,6 +25,30 @@ Supporting requirements: user authentication (each user's financial data is priv
 2. **Savings Goal Tracker** — Users create savings goals (e.g. "Emergency Fund – $5,000") and log contributions toward each one. Features: goal CRUD, contribution CRUD, progress visualization, user auth. Audience: individuals building savings habits.
 3. **Debt Payoff Planner** — Users list their debts (balance, interest rate, minimum payment) and log payments against them, with the app suggesting a snowball or avalanche payoff order. Features: debt CRUD, payment-log CRUD, payoff-order calculation, user auth. Audience: individuals paying down multiple debts.
 
+## Running Locally
+
+Requires the .NET 8 SDK.
+
+```
+cd ClearToClose
+dotnet ef database update   # creates the local SQLite database
+dotnet run
+```
+
+Open the URL printed in the terminal (e.g. `http://localhost:5000`).
+
+## Using the App
+
+1. **Register** an account from the top navigation. The app doesn't send real emails, so the confirmation page shows a "click here to confirm your account" link directly — click it, then log in.
+2. **Income & Goal** (`/profile`): enter your monthly income and your goal DTI (debt-to-income ratio) as a decimal, e.g. `0.36` for 36%. Save this first — the Dashboard can't calculate anything without it.
+3. **Debts** (`/debts`): add every debt that counts toward DTI (car loan, credit cards, student loans, etc.) with its monthly payment. Edit or delete a debt at any time.
+4. **Bills** (`/bills`): add recurring bills with an amount and due date, and check the box in the Paid? column once you've paid one for the current period.
+5. **Paychecks** (`/paychecks`): log paychecks as you receive them.
+6. **Purchases** (`/purchases`): log what you spend and assign it a category (Groceries, Dining, etc.). The bottom of the page totals your spending by category.
+7. **Dashboard** (`/`): once income, debts, bills, and purchases are entered, this page shows your current DTI against your goal, how many bills are still unpaid, and your spending over the last 30 days.
+
+Every page except Register/Login requires being signed in, and each user only ever sees their own data.
+
 ## Status
 
-Project setup in progress (Week 2 of the course).
+Core features (auth, DTI dashboard, debts, bills, paychecks, purchases) are built and working locally. Not yet deployed to a cloud host.

@@ -11,54 +11,78 @@
 
 <h1>Paychecks</h1>
 
-<EditForm Model="newPaycheck" OnValidSubmit="AddPaycheck">
-    <DataAnnotationsValidator />
-    <div class="row g-2 align-items-end mb-3">
-        <div class="col-auto">
-            <label class="form-label">Amount</label>
-            <InputNumber class="form-control" @bind-Value="newPaycheck.Amount" />
-        </div>
-        <div class="col-auto">
-            <label class="form-label">Date Received</label>
-            <InputDate class="form-control" @bind-Value="newPaycheckDate" />
-        </div>
-        <div class="col-auto">
-            <button type="submit" class="btn btn-primary">Add Paycheck</button>
-        </div>
-    </div>
-    <ValidationSummary />
-</EditForm>
+@if (errorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
 
-@if (paychecks is null)
-{
-    <p>Loading...</p>
-}
-else if (paychecks.Count == 0)
-{
-    <p>No paychecks logged yet.</p>
-}
-else
-{
-    <table class="table">
-        <thead><tr><th>Date</th><th>Amount</th><th></th></tr></thead>
-        <tbody>
-        @foreach (var paycheck in paychecks)
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">@(editingId is null ? "Add a Paycheck" : "Edit Paycheck")</h5>
+        <EditForm Model="formPaycheck" OnValidSubmit="SavePaycheck">
+            <DataAnnotationsValidator />
+            <div class="row g-2 align-items-end">
+                <div class="col-auto">
+                    <label for="paycheck-amount" class="form-label">Amount</label>
+                    <InputNumber id="paycheck-amount" class="form-control" @bind-Value="formPaycheck.Amount" />
+                </div>
+                <div class="col-auto">
+                    <label for="paycheck-date" class="form-label">Date Received</label>
+                    <InputDate id="paycheck-date" class="form-control" @bind-Value="formPaycheckDate" />
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">@(editingId is null ? "Add Paycheck" : "Save Changes")</button>
+                    @if (editingId is not null)
+                    {
+                        <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">Cancel</button>
+                    }
+                </div>
+            </div>
+            <ValidationSummary />
+        </EditForm>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">Your Paychecks</h5>
+        @if (paychecks is null)
         {
-            <tr>
-                <td>@paycheck.DateReceived.ToShortDateString()</td>
-                <td>@paycheck.Amount.ToString("C")</td>
-                <td><button class="btn btn-sm btn-outline-danger" @onclick="() => DeletePaycheck(paycheck.Id)">Delete</button></td>
-            </tr>
+            <p>Loading...</p>
         }
-        </tbody>
-    </table>
-}
+        else if (paychecks.Count == 0)
+        {
+            <p>No paychecks logged yet.</p>
+        }
+        else
+        {
+            <table class="table">
+                <thead><tr><th scope="col">Date</th><th scope="col">Amount</th><th scope="col">Actions</th></tr></thead>
+                <tbody>
+                @foreach (var paycheck in paychecks)
+                {
+                    <tr>
+                        <td>@paycheck.DateReceived.ToShortDateString()</td>
+                        <td>@paycheck.Amount.ToString("C")</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => StartEdit(paycheck)">Edit</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeletePaycheck(paycheck.Id)">Delete</button>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
 
 @code {
     private List<Paycheck>? paychecks;
-    private Paycheck newPaycheck = new();
-    private DateTime newPaycheckDate = DateTime.Today;
+    private Paycheck formPaycheck = new();
+    private DateTime formPaycheckDate = DateTime.Today;
+    private int? editingId;
     private string userId = string.Empty;
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -72,25 +96,75 @@ else
         paychecks = await Db.Paychecks.Where(p => p.UserId == userId).OrderByDescending(p => p.DateReceived).ToListAsync();
     }
 
-    private async Task AddPaycheck()
+    private void StartEdit(Paycheck paycheck)
     {
-        newPaycheck.UserId = userId;
-        newPaycheck.DateReceived = DateOnly.FromDateTime(newPaycheckDate);
-        Db.Paychecks.Add(newPaycheck);
-        await Db.SaveChangesAsync();
-        newPaycheck = new Paycheck();
-        newPaycheckDate = DateTime.Today;
-        await LoadPaychecks();
+        editingId = paycheck.Id;
+        formPaycheck = new Paycheck { Id = paycheck.Id, Amount = paycheck.Amount };
+        formPaycheckDate = paycheck.DateReceived.ToDateTime(TimeOnly.MinValue);
+        errorMessage = null;
+    }
+
+    private void CancelEdit()
+    {
+        editingId = null;
+        formPaycheck = new Paycheck();
+        formPaycheckDate = DateTime.Today;
+        errorMessage = null;
+    }
+
+    private async Task SavePaycheck()
+    {
+        errorMessage = null;
+        try
+        {
+            if (editingId is int id)
+            {
+                var existing = await Db.Paychecks.FindAsync(id);
+                if (existing is null)
+                {
+                    errorMessage = "That paycheck no longer exists. It may have been deleted.";
+                    editingId = null;
+                    await LoadPaychecks();
+                    return;
+                }
+                existing.Amount = formPaycheck.Amount;
+                existing.DateReceived = DateOnly.FromDateTime(formPaycheckDate);
+            }
+            else
+            {
+                formPaycheck.UserId = userId;
+                formPaycheck.DateReceived = DateOnly.FromDateTime(formPaycheckDate);
+                Db.Paychecks.Add(formPaycheck);
+            }
+
+            await Db.SaveChangesAsync();
+            editingId = null;
+            formPaycheck = new Paycheck();
+            formPaycheckDate = DateTime.Today;
+            await LoadPaychecks();
+        }
+        catch (DbUpdateException)
+        {
+            errorMessage = "We couldn't save that paycheck. Please try again.";
+        }
     }
 
     private async Task DeletePaycheck(int id)
     {
-        var paycheck = await Db.Paychecks.FindAsync(id);
-        if (paycheck is not null)
+        errorMessage = null;
+        try
         {
-            Db.Paychecks.Remove(paycheck);
-            await Db.SaveChangesAsync();
+            var paycheck = await Db.Paychecks.FindAsync(id);
+            if (paycheck is not null)
+            {
+                Db.Paychecks.Remove(paycheck);
+                await Db.SaveChangesAsync();
+            }
+            await LoadPaychecks();
         }
-        await LoadPaychecks();
+        catch (DbUpdateException)
+        {
+            errorMessage = "We couldn't delete that paycheck. Please try again.";
+        }
     }
 }

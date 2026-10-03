@@ -12,35 +12,45 @@
 <h1>Income &amp; DTI Goal</h1>
 <p>Your monthly income and goal DTI are used to calculate your DTI dashboard.</p>
 
+@if (errorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+
 @if (profile is null)
 {
     <p>Loading...</p>
 }
 else
 {
-    <EditForm Model="profile" OnValidSubmit="Save">
-        <DataAnnotationsValidator />
-        <div class="mb-3">
-            <label class="form-label">Monthly Income</label>
-            <InputNumber class="form-control" @bind-Value="profile.MonthlyIncome" />
+    <div class="card">
+        <div class="card-body">
+            <EditForm Model="profile" OnValidSubmit="Save">
+                <DataAnnotationsValidator />
+                <div class="mb-3">
+                    <label for="monthly-income" class="form-label">Monthly Income</label>
+                    <InputNumber id="monthly-income" class="form-control" @bind-Value="profile.MonthlyIncome" />
+                </div>
+                <div class="mb-3">
+                    <label for="goal-dti" class="form-label">Goal DTI (as a decimal, e.g. 0.36 for 36%)</label>
+                    <InputNumber id="goal-dti" class="form-control" @bind-Value="profile.GoalDti" />
+                </div>
+                <button type="submit" class="btn btn-primary">Save</button>
+                @if (saved)
+                {
+                    <span class="text-success ms-2">Saved!</span>
+                }
+                <ValidationSummary />
+            </EditForm>
         </div>
-        <div class="mb-3">
-            <label class="form-label">Goal DTI (as a decimal, e.g. 0.36 for 36%)</label>
-            <InputNumber class="form-control" @bind-Value="profile.GoalDti" />
-        </div>
-        <button type="submit" class="btn btn-primary">Save</button>
-        @if (saved)
-        {
-            <span class="text-success ms-2">Saved!</span>
-        }
-        <ValidationSummary />
-    </EditForm>
+    </div>
 }
 
 @code {
     private FinancialProfile? profile;
     private string userId = string.Empty;
     private bool saved;
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -52,11 +62,20 @@ else
 
     private async Task Save()
     {
-        if (profile!.Id == 0)
+        errorMessage = null;
+        saved = false;
+        try
         {
-            Db.FinancialProfiles.Add(profile);
+            if (profile!.Id == 0)
+            {
+                Db.FinancialProfiles.Add(profile);
+            }
+            await Db.SaveChangesAsync();
+            saved = true;
         }
-        await Db.SaveChangesAsync();
-        saved = true;
+        catch (DbUpdateException)
+        {
+            errorMessage = "We couldn't save your profile. Please try again.";
+        }
     }
 }

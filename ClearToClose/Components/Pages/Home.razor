@@ -11,7 +11,11 @@
 
 <h1>Dashboard</h1>
 
-@if (loading)
+@if (errorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+else if (loading)
 {
     <p>Loading...</p>
 }
@@ -72,30 +76,42 @@ else
     private int unpaidBillCount;
     private int totalBillCount;
     private decimal recentSpending;
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthProvider.GetAuthenticationStateAsync();
-        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        try
+        {
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
 
-        var profile = await Db.FinancialProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
-        monthlyIncome = profile?.MonthlyIncome ?? 0;
-        goalDti = profile?.GoalDti ?? 0.36m;
+            var profile = await Db.FinancialProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
+            monthlyIncome = profile?.MonthlyIncome ?? 0;
+            goalDti = profile?.GoalDti ?? 0.36m;
 
-        var debts = await Db.Debts.Where(d => d.UserId == userId).ToListAsync();
-        var totalDebtPayments = debts.Sum(d => d.MonthlyPayment);
-        currentDti = monthlyIncome > 0 ? totalDebtPayments / monthlyIncome : 0;
+            // SQLite can't SUM() a decimal column in SQL, so pull the rows and
+            // sum them client-side instead of calling SumAsync() on the query.
+            var debts = await Db.Debts.Where(d => d.UserId == userId).ToListAsync();
+            var totalDebtPayments = debts.Sum(d => d.MonthlyPayment);
+            currentDti = monthlyIncome > 0 ? totalDebtPayments / monthlyIncome : 0;
 
-        var bills = await Db.Bills.Where(b => b.UserId == userId).ToListAsync();
-        totalBillCount = bills.Count;
-        unpaidBillCount = bills.Count(b => !b.IsPaid);
+            var bills = await Db.Bills.Where(b => b.UserId == userId).ToListAsync();
+            totalBillCount = bills.Count;
+            unpaidBillCount = bills.Count(b => !b.IsPaid);
 
-        var cutoff = DateOnly.FromDateTime(DateTime.Today.AddDays(-30));
-        var recentPurchases = await Db.Purchases
-            .Where(p => p.UserId == userId && p.Date >= cutoff)
-            .ToListAsync();
-        recentSpending = recentPurchases.Sum(p => p.Amount);
-
-        loading = false;
+            var cutoff = DateOnly.FromDateTime(DateTime.Today.AddDays(-30));
+            var recentPurchases = await Db.Purchases
+                .Where(p => p.UserId == userId && p.Date >= cutoff)
+                .ToListAsync();
+            recentSpending = recentPurchases.Sum(p => p.Amount);
+        }
+        catch (Exception)
+        {
+            errorMessage = "We couldn't load your dashboard. Please refresh the page.";
+        }
+        finally
+        {
+            loading = false;
+        }
     }
 }

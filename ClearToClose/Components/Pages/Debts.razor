@@ -12,54 +12,78 @@
 <h1>Debts</h1>
 <p>List the debts that count toward your debt-to-income ratio (loans, credit cards, car payments, etc.).</p>
 
-<EditForm Model="newDebt" OnValidSubmit="AddDebt">
-    <DataAnnotationsValidator />
-    <div class="row g-2 align-items-end mb-3">
-        <div class="col-auto">
-            <label class="form-label">Name</label>
-            <InputText class="form-control" @bind-Value="newDebt.Name" />
-        </div>
-        <div class="col-auto">
-            <label class="form-label">Monthly Payment</label>
-            <InputNumber class="form-control" @bind-Value="newDebt.MonthlyPayment" />
-        </div>
-        <div class="col-auto">
-            <button type="submit" class="btn btn-primary">Add Debt</button>
-        </div>
-    </div>
-    <ValidationSummary />
-</EditForm>
+@if (errorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
 
-@if (debts is null)
-{
-    <p>Loading...</p>
-}
-else if (debts.Count == 0)
-{
-    <p>No debts added yet.</p>
-}
-else
-{
-    <table class="table">
-        <thead><tr><th>Name</th><th>Monthly Payment</th><th></th></tr></thead>
-        <tbody>
-        @foreach (var debt in debts)
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">@(editingId is null ? "Add a Debt" : "Edit Debt")</h5>
+        <EditForm Model="formDebt" OnValidSubmit="SaveDebt">
+            <DataAnnotationsValidator />
+            <div class="row g-2 align-items-end">
+                <div class="col-auto">
+                    <label for="debt-name" class="form-label">Name</label>
+                    <InputText id="debt-name" class="form-control" @bind-Value="formDebt.Name" />
+                </div>
+                <div class="col-auto">
+                    <label for="debt-payment" class="form-label">Monthly Payment</label>
+                    <InputNumber id="debt-payment" class="form-control" @bind-Value="formDebt.MonthlyPayment" />
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">@(editingId is null ? "Add Debt" : "Save Changes")</button>
+                    @if (editingId is not null)
+                    {
+                        <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">Cancel</button>
+                    }
+                </div>
+            </div>
+            <ValidationSummary />
+        </EditForm>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">Your Debts</h5>
+        @if (debts is null)
         {
-            <tr>
-                <td>@debt.Name</td>
-                <td>@debt.MonthlyPayment.ToString("C")</td>
-                <td><button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteDebt(debt.Id)">Delete</button></td>
-            </tr>
+            <p>Loading...</p>
         }
-        </tbody>
-    </table>
-    <p><strong>Total monthly debt payments: @debts.Sum(d => d.MonthlyPayment).ToString("C")</strong></p>
-}
+        else if (debts.Count == 0)
+        {
+            <p>No debts added yet.</p>
+        }
+        else
+        {
+            <table class="table">
+                <thead><tr><th scope="col">Name</th><th scope="col">Monthly Payment</th><th scope="col">Actions</th></tr></thead>
+                <tbody>
+                @foreach (var debt in debts)
+                {
+                    <tr>
+                        <td>@debt.Name</td>
+                        <td>@debt.MonthlyPayment.ToString("C")</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => StartEdit(debt)">Edit</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteDebt(debt.Id)">Delete</button>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+            <p class="mb-0"><strong>Total monthly debt payments: @debts.Sum(d => d.MonthlyPayment).ToString("C")</strong></p>
+        }
+    </div>
+</div>
 
 @code {
     private List<Debt>? debts;
-    private Debt newDebt = new();
+    private Debt formDebt = new();
+    private int? editingId;
     private string userId = string.Empty;
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -73,23 +97,71 @@ else
         debts = await Db.Debts.Where(d => d.UserId == userId).OrderBy(d => d.Name).ToListAsync();
     }
 
-    private async Task AddDebt()
+    private void StartEdit(Debt debt)
     {
-        newDebt.UserId = userId;
-        Db.Debts.Add(newDebt);
-        await Db.SaveChangesAsync();
-        newDebt = new Debt();
-        await LoadDebts();
+        editingId = debt.Id;
+        formDebt = new Debt { Id = debt.Id, Name = debt.Name, MonthlyPayment = debt.MonthlyPayment };
+        errorMessage = null;
+    }
+
+    private void CancelEdit()
+    {
+        editingId = null;
+        formDebt = new Debt();
+        errorMessage = null;
+    }
+
+    private async Task SaveDebt()
+    {
+        errorMessage = null;
+        try
+        {
+            if (editingId is int id)
+            {
+                var existing = await Db.Debts.FindAsync(id);
+                if (existing is null)
+                {
+                    errorMessage = "That debt no longer exists. It may have been deleted.";
+                    editingId = null;
+                    await LoadDebts();
+                    return;
+                }
+                existing.Name = formDebt.Name;
+                existing.MonthlyPayment = formDebt.MonthlyPayment;
+            }
+            else
+            {
+                formDebt.UserId = userId;
+                Db.Debts.Add(formDebt);
+            }
+
+            await Db.SaveChangesAsync();
+            editingId = null;
+            formDebt = new Debt();
+            await LoadDebts();
+        }
+        catch (DbUpdateException)
+        {
+            errorMessage = "We couldn't save that debt. Please try again.";
+        }
     }
 
     private async Task DeleteDebt(int id)
     {
-        var debt = await Db.Debts.FindAsync(id);
-        if (debt is not null)
+        errorMessage = null;
+        try
         {
-            Db.Debts.Remove(debt);
-            await Db.SaveChangesAsync();
+            var debt = await Db.Debts.FindAsync(id);
+            if (debt is not null)
+            {
+                Db.Debts.Remove(debt);
+                await Db.SaveChangesAsync();
+            }
+            await LoadDebts();
         }
-        await LoadDebts();
+        catch (DbUpdateException)
+        {
+            errorMessage = "We couldn't delete that debt. Please try again.";
+        }
     }
 }

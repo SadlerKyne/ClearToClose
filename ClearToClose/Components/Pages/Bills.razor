@@ -11,63 +11,88 @@
 
 <h1>Bills</h1>
 
-<EditForm Model="newBill" OnValidSubmit="AddBill">
-    <DataAnnotationsValidator />
-    <div class="row g-2 align-items-end mb-3">
-        <div class="col-auto">
-            <label class="form-label">Name</label>
-            <InputText class="form-control" @bind-Value="newBill.Name" />
-        </div>
-        <div class="col-auto">
-            <label class="form-label">Amount</label>
-            <InputNumber class="form-control" @bind-Value="newBill.Amount" />
-        </div>
-        <div class="col-auto">
-            <label class="form-label">Due Date</label>
-            <InputDate class="form-control" @bind-Value="newBillDueDate" />
-        </div>
-        <div class="col-auto">
-            <button type="submit" class="btn btn-primary">Add Bill</button>
-        </div>
-    </div>
-    <ValidationSummary />
-</EditForm>
+@if (errorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
 
-@if (bills is null)
-{
-    <p>Loading...</p>
-}
-else if (bills.Count == 0)
-{
-    <p>No bills added yet.</p>
-}
-else
-{
-    <table class="table">
-        <thead><tr><th>Name</th><th>Amount</th><th>Due Date</th><th>Paid?</th><th></th></tr></thead>
-        <tbody>
-        @foreach (var bill in bills)
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">@(editingId is null ? "Add a Bill" : "Edit Bill")</h5>
+        <EditForm Model="formBill" OnValidSubmit="SaveBill">
+            <DataAnnotationsValidator />
+            <div class="row g-2 align-items-end">
+                <div class="col-auto">
+                    <label for="bill-name" class="form-label">Name</label>
+                    <InputText id="bill-name" class="form-control" @bind-Value="formBill.Name" />
+                </div>
+                <div class="col-auto">
+                    <label for="bill-amount" class="form-label">Amount</label>
+                    <InputNumber id="bill-amount" class="form-control" @bind-Value="formBill.Amount" />
+                </div>
+                <div class="col-auto">
+                    <label for="bill-due" class="form-label">Due Date</label>
+                    <InputDate id="bill-due" class="form-control" @bind-Value="formBillDueDate" />
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">@(editingId is null ? "Add Bill" : "Save Changes")</button>
+                    @if (editingId is not null)
+                    {
+                        <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">Cancel</button>
+                    }
+                </div>
+            </div>
+            <ValidationSummary />
+        </EditForm>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">Your Bills</h5>
+        @if (bills is null)
         {
-            <tr class="@(bill.IsPaid ? "table-success" : "")">
-                <td>@bill.Name</td>
-                <td>@bill.Amount.ToString("C")</td>
-                <td>@bill.DueDate.ToShortDateString()</td>
-                <td>
-                    <input type="checkbox" checked="@bill.IsPaid" @onchange="(e) => TogglePaid(bill, e)" />
-                </td>
-                <td><button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteBill(bill.Id)">Delete</button></td>
-            </tr>
+            <p>Loading...</p>
         }
-        </tbody>
-    </table>
-    <p>Unpaid bills remaining: <strong>@bills.Count(b => !b.IsPaid)</strong></p>
-}
+        else if (bills.Count == 0)
+        {
+            <p>No bills added yet.</p>
+        }
+        else
+        {
+            <table class="table">
+                <thead><tr><th scope="col">Name</th><th scope="col">Amount</th><th scope="col">Due Date</th><th scope="col">Paid?</th><th scope="col">Actions</th></tr></thead>
+                <tbody>
+                @foreach (var bill in bills)
+                {
+                    <tr class="@(bill.IsPaid ? "table-success" : "")">
+                        <td>@bill.Name</td>
+                        <td>@bill.Amount.ToString("C")</td>
+                        <td>@bill.DueDate.ToShortDateString()</td>
+                        <td>
+                            <label class="visually-hidden" for="@($"paid-{bill.Id}")">Mark @bill.Name as paid</label>
+                            <input id="@($"paid-{bill.Id}")" type="checkbox" checked="@bill.IsPaid" @onchange="(e) => TogglePaid(bill, e)" />
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => StartEdit(bill)">Edit</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteBill(bill.Id)">Delete</button>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+            <p class="mb-0">Unpaid bills remaining: <strong>@bills.Count(b => !b.IsPaid)</strong></p>
+        }
+    </div>
+</div>
 
 @code {
     private List<Bill>? bills;
-    private Bill newBill = new();
-    private DateTime newBillDueDate = DateTime.Today;
+    private Bill formBill = new();
+    private DateTime formBillDueDate = DateTime.Today;
+    private int? editingId;
     private string userId = string.Empty;
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -81,31 +106,91 @@ else
         bills = await Db.Bills.Where(b => b.UserId == userId).OrderBy(b => b.DueDate).ToListAsync();
     }
 
-    private async Task AddBill()
+    private void StartEdit(Bill bill)
     {
-        newBill.UserId = userId;
-        newBill.DueDate = DateOnly.FromDateTime(newBillDueDate);
-        Db.Bills.Add(newBill);
-        await Db.SaveChangesAsync();
-        newBill = new Bill();
-        newBillDueDate = DateTime.Today;
-        await LoadBills();
+        editingId = bill.Id;
+        formBill = new Bill { Id = bill.Id, Name = bill.Name, Amount = bill.Amount, IsPaid = bill.IsPaid };
+        formBillDueDate = bill.DueDate.ToDateTime(TimeOnly.MinValue);
+        errorMessage = null;
+    }
+
+    private void CancelEdit()
+    {
+        editingId = null;
+        formBill = new Bill();
+        formBillDueDate = DateTime.Today;
+        errorMessage = null;
+    }
+
+    private async Task SaveBill()
+    {
+        errorMessage = null;
+        try
+        {
+            if (editingId is int id)
+            {
+                var existing = await Db.Bills.FindAsync(id);
+                if (existing is null)
+                {
+                    errorMessage = "That bill no longer exists. It may have been deleted.";
+                    editingId = null;
+                    await LoadBills();
+                    return;
+                }
+                existing.Name = formBill.Name;
+                existing.Amount = formBill.Amount;
+                existing.DueDate = DateOnly.FromDateTime(formBillDueDate);
+            }
+            else
+            {
+                formBill.UserId = userId;
+                formBill.DueDate = DateOnly.FromDateTime(formBillDueDate);
+                Db.Bills.Add(formBill);
+            }
+
+            await Db.SaveChangesAsync();
+            editingId = null;
+            formBill = new Bill();
+            formBillDueDate = DateTime.Today;
+            await LoadBills();
+        }
+        catch (DbUpdateException)
+        {
+            errorMessage = "We couldn't save that bill. Please try again.";
+        }
     }
 
     private async Task TogglePaid(Bill bill, ChangeEventArgs e)
     {
-        bill.IsPaid = (bool)(e.Value ?? false);
-        await Db.SaveChangesAsync();
+        errorMessage = null;
+        try
+        {
+            bill.IsPaid = (bool)(e.Value ?? false);
+            await Db.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            errorMessage = "We couldn't update that bill's paid status. Please try again.";
+            await LoadBills();
+        }
     }
 
     private async Task DeleteBill(int id)
     {
-        var bill = await Db.Bills.FindAsync(id);
-        if (bill is not null)
+        errorMessage = null;
+        try
         {
-            Db.Bills.Remove(bill);
-            await Db.SaveChangesAsync();
+            var bill = await Db.Bills.FindAsync(id);
+            if (bill is not null)
+            {
+                Db.Bills.Remove(bill);
+                await Db.SaveChangesAsync();
+            }
+            await LoadBills();
         }
-        await LoadBills();
+        catch (DbUpdateException)
+        {
+            errorMessage = "We couldn't delete that bill. Please try again.";
+        }
     }
 }

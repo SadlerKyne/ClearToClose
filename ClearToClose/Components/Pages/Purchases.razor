@@ -11,78 +11,109 @@
 
 <h1>Purchases</h1>
 
-<EditForm Model="newPurchase" OnValidSubmit="AddPurchase">
-    <DataAnnotationsValidator />
-    <div class="row g-2 align-items-end mb-3">
-        <div class="col-auto">
-            <label class="form-label">Description</label>
-            <InputText class="form-control" @bind-Value="newPurchase.Description" />
-        </div>
-        <div class="col-auto">
-            <label class="form-label">Amount</label>
-            <InputNumber class="form-control" @bind-Value="newPurchase.Amount" />
-        </div>
-        <div class="col-auto">
-            <label class="form-label">Category</label>
-            <InputText class="form-control" @bind-Value="newPurchase.Category" placeholder="Groceries, Dining, etc." />
-        </div>
-        <div class="col-auto">
-            <label class="form-label">Date</label>
-            <InputDate class="form-control" @bind-Value="newPurchaseDate" />
-        </div>
-        <div class="col-auto">
-            <button type="submit" class="btn btn-primary">Add Purchase</button>
+@if (errorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">@(editingId is null ? "Add a Purchase" : "Edit Purchase")</h5>
+        <EditForm Model="formPurchase" OnValidSubmit="SavePurchase">
+            <DataAnnotationsValidator />
+            <div class="row g-2 align-items-end">
+                <div class="col-auto">
+                    <label for="purchase-description" class="form-label">Description</label>
+                    <InputText id="purchase-description" class="form-control" @bind-Value="formPurchase.Description" />
+                </div>
+                <div class="col-auto">
+                    <label for="purchase-amount" class="form-label">Amount</label>
+                    <InputNumber id="purchase-amount" class="form-control" @bind-Value="formPurchase.Amount" />
+                </div>
+                <div class="col-auto">
+                    <label for="purchase-category" class="form-label">Category</label>
+                    <InputText id="purchase-category" class="form-control" @bind-Value="formPurchase.Category" placeholder="Groceries, Dining, etc." />
+                </div>
+                <div class="col-auto">
+                    <label for="purchase-date" class="form-label">Date</label>
+                    <InputDate id="purchase-date" class="form-control" @bind-Value="formPurchaseDate" />
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">@(editingId is null ? "Add Purchase" : "Save Changes")</button>
+                    @if (editingId is not null)
+                    {
+                        <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">Cancel</button>
+                    }
+                </div>
+            </div>
+            <ValidationSummary />
+        </EditForm>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">Your Purchases</h5>
+        @if (purchases is null)
+        {
+            <p>Loading...</p>
+        }
+        else if (purchases.Count == 0)
+        {
+            <p>No purchases logged yet.</p>
+        }
+        else
+        {
+            <table class="table">
+                <thead><tr><th scope="col">Date</th><th scope="col">Description</th><th scope="col">Category</th><th scope="col">Amount</th><th scope="col">Actions</th></tr></thead>
+                <tbody>
+                @foreach (var purchase in purchases)
+                {
+                    <tr>
+                        <td>@purchase.Date.ToShortDateString()</td>
+                        <td>@purchase.Description</td>
+                        <td>@purchase.Category</td>
+                        <td>@purchase.Amount.ToString("C")</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => StartEdit(purchase)">Edit</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeletePurchase(purchase.Id)">Delete</button>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@if (purchases is { Count: > 0 })
+{
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Spending by Category</h5>
+            <table class="table">
+                <thead><tr><th scope="col">Category</th><th scope="col">Total</th></tr></thead>
+                <tbody>
+                @foreach (var group in purchases.GroupBy(p => p.Category).OrderByDescending(g => g.Sum(p => p.Amount)))
+                {
+                    <tr>
+                        <td>@group.Key</td>
+                        <td>@group.Sum(p => p.Amount).ToString("C")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
         </div>
     </div>
-    <ValidationSummary />
-</EditForm>
-
-@if (purchases is null)
-{
-    <p>Loading...</p>
-}
-else if (purchases.Count == 0)
-{
-    <p>No purchases logged yet.</p>
-}
-else
-{
-    <table class="table">
-        <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th></th></tr></thead>
-        <tbody>
-        @foreach (var purchase in purchases)
-        {
-            <tr>
-                <td>@purchase.Date.ToShortDateString()</td>
-                <td>@purchase.Description</td>
-                <td>@purchase.Category</td>
-                <td>@purchase.Amount.ToString("C")</td>
-                <td><button class="btn btn-sm btn-outline-danger" @onclick="() => DeletePurchase(purchase.Id)">Delete</button></td>
-            </tr>
-        }
-        </tbody>
-    </table>
-
-    <h3 class="mt-4">Spending by Category</h3>
-    <table class="table">
-        <thead><tr><th>Category</th><th>Total</th></tr></thead>
-        <tbody>
-        @foreach (var group in purchases.GroupBy(p => p.Category).OrderByDescending(g => g.Sum(p => p.Amount)))
-        {
-            <tr>
-                <td>@group.Key</td>
-                <td>@group.Sum(p => p.Amount).ToString("C")</td>
-            </tr>
-        }
-        </tbody>
-    </table>
 }
 
 @code {
     private List<Purchase>? purchases;
-    private Purchase newPurchase = new();
-    private DateTime newPurchaseDate = DateTime.Today;
+    private Purchase formPurchase = new();
+    private DateTime formPurchaseDate = DateTime.Today;
+    private int? editingId;
     private string userId = string.Empty;
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -96,25 +127,77 @@ else
         purchases = await Db.Purchases.Where(p => p.UserId == userId).OrderByDescending(p => p.Date).ToListAsync();
     }
 
-    private async Task AddPurchase()
+    private void StartEdit(Purchase purchase)
     {
-        newPurchase.UserId = userId;
-        newPurchase.Date = DateOnly.FromDateTime(newPurchaseDate);
-        Db.Purchases.Add(newPurchase);
-        await Db.SaveChangesAsync();
-        newPurchase = new Purchase();
-        newPurchaseDate = DateTime.Today;
-        await LoadPurchases();
+        editingId = purchase.Id;
+        formPurchase = new Purchase { Id = purchase.Id, Description = purchase.Description, Amount = purchase.Amount, Category = purchase.Category };
+        formPurchaseDate = purchase.Date.ToDateTime(TimeOnly.MinValue);
+        errorMessage = null;
+    }
+
+    private void CancelEdit()
+    {
+        editingId = null;
+        formPurchase = new Purchase();
+        formPurchaseDate = DateTime.Today;
+        errorMessage = null;
+    }
+
+    private async Task SavePurchase()
+    {
+        errorMessage = null;
+        try
+        {
+            if (editingId is int id)
+            {
+                var existing = await Db.Purchases.FindAsync(id);
+                if (existing is null)
+                {
+                    errorMessage = "That purchase no longer exists. It may have been deleted.";
+                    editingId = null;
+                    await LoadPurchases();
+                    return;
+                }
+                existing.Description = formPurchase.Description;
+                existing.Amount = formPurchase.Amount;
+                existing.Category = formPurchase.Category;
+                existing.Date = DateOnly.FromDateTime(formPurchaseDate);
+            }
+            else
+            {
+                formPurchase.UserId = userId;
+                formPurchase.Date = DateOnly.FromDateTime(formPurchaseDate);
+                Db.Purchases.Add(formPurchase);
+            }
+
+            await Db.SaveChangesAsync();
+            editingId = null;
+            formPurchase = new Purchase();
+            formPurchaseDate = DateTime.Today;
+            await LoadPurchases();
+        }
+        catch (DbUpdateException)
+        {
+            errorMessage = "We couldn't save that purchase. Please try again.";
+        }
     }
 
     private async Task DeletePurchase(int id)
     {
-        var purchase = await Db.Purchases.FindAsync(id);
-        if (purchase is not null)
+        errorMessage = null;
+        try
         {
-            Db.Purchases.Remove(purchase);
-            await Db.SaveChangesAsync();
+            var purchase = await Db.Purchases.FindAsync(id);
+            if (purchase is not null)
+            {
+                Db.Purchases.Remove(purchase);
+                await Db.SaveChangesAsync();
+            }
+            await LoadPurchases();
         }
-        await LoadPurchases();
+        catch (DbUpdateException)
+        {
+            errorMessage = "We couldn't delete that purchase. Please try again.";
+        }
     }
 }
