@@ -6,6 +6,14 @@ using ClearToClose.Components;
 using ClearToClose.Components.Account;
 using ClearToClose.Data;
 
+// Pin the culture to en-US so currency/number formatting (e.g. ToString("C"))
+// is consistent regardless of the host OS's locale availability -- the minimal
+// Linux container this runs in otherwise falls back to the invariant culture's
+// generic "¤" currency symbol instead of "$".
+var cultureInfo = new System.Globalization.CultureInfo("en-US");
+System.Globalization.CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
+System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Render (and most host platforms) assign the port to listen on via PORT.
